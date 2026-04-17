@@ -1,0 +1,1109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Investment Portfolio Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --surface: #111827;
+    --surface2: #1a2236;
+    --border: #1e2d47;
+    --accent: #00d4aa;
+    --accent2: #3b82f6;
+    --accent3: #f59e0b;
+    --red: #ef4444;
+    --green: #22c55e;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --font-display: 'Syne', sans-serif;
+    --font-mono: 'DM Mono', monospace;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-display);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Background grid */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(0,212,170,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,170,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none; z-index: 0;
+  }
+
+  .container { max-width: 1600px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
+
+  /* HEADER */
+  header {
+    padding: 28px 0 20px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 32px;
+  }
+  .header-inner { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+  .logo {
+    display: flex; align-items: center; gap: 12px;
+  }
+  .logo-icon {
+    width: 40px; height: 40px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+  }
+  .logo-text { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
+  .logo-text span { color: var(--accent); }
+  .header-meta { display: flex; align-items: center; gap: 20px; }
+  .sync-btn {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 18px;
+    border-radius: 8px;
+    font-family: var(--font-display);
+    font-size: 13px; font-weight: 600;
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .sync-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .sync-btn.loading { opacity: .6; pointer-events: none; }
+  .last-updated { font-size: 12px; color: var(--muted); font-family: var(--font-mono); }
+
+  /* CONFIG PANEL */
+  .config-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px 24px;
+    margin-bottom: 28px;
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  }
+  .config-label { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; white-space: nowrap; }
+  .config-input {
+    flex: 1; min-width: 280px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    outline: none;
+    transition: border-color .2s;
+  }
+  .config-input:focus { border-color: var(--accent); }
+  .config-hint { font-size: 11px; color: var(--muted); font-family: var(--font-mono); }
+  .load-btn {
+    background: linear-gradient(135deg, var(--accent), #00a88a);
+    color: #0a0e1a;
+    border: none;
+    padding: 10px 22px;
+    border-radius: 8px;
+    font-family: var(--font-display);
+    font-size: 14px; font-weight: 700;
+    cursor: pointer;
+    transition: opacity .2s, transform .1s;
+  }
+  .load-btn:hover { opacity: .9; transform: translateY(-1px); }
+
+  /* STATUS BAR */
+  #statusBar {
+    display: none;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 18px;
+    margin-bottom: 24px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--accent);
+  }
+
+  /* KPI CARDS */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+  .kpi-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 22px 24px;
+    position: relative;
+    overflow: hidden;
+    transition: transform .2s, border-color .2s;
+    animation: fadeUp .4s ease forwards;
+    opacity: 0;
+  }
+  .kpi-card:hover { transform: translateY(-3px); border-color: var(--accent); }
+  .kpi-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+  }
+  .kpi-label { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 10px; }
+  .kpi-value { font-size: 26px; font-weight: 800; letter-spacing: -1px; font-family: var(--font-mono); }
+  .kpi-sub { font-size: 12px; color: var(--muted); margin-top: 6px; font-family: var(--font-mono); }
+  .kpi-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 6px; margin-top: 6px; }
+  .kpi-badge.pos { background: rgba(34,197,94,.15); color: var(--green); }
+  .kpi-badge.neg { background: rgba(239,68,68,.15); color: var(--red); }
+
+  /* CHARTS ROW */
+  .charts-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 28px;
+  }
+  @media(max-width:700px) { .charts-grid { grid-template-columns: 1fr; } }
+
+  .chart-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    animation: fadeUp .5s ease forwards;
+    opacity: 0;
+  }
+  .chart-card-wide { grid-column: span 2; }
+  .chart-title {
+    font-size: 13px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 1.5px;
+    margin-bottom: 20px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .chart-title::before { content: ''; display: inline-block; width: 3px; height: 14px; background: var(--accent); border-radius: 2px; }
+  .chart-wrap { position: relative; height: 220px; }
+  .chart-card-wide .chart-wrap { height: 280px; }
+
+  /* TABLES SECTION */
+  .tables-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 20px;
+    margin-bottom: 28px;
+  }
+  @media(max-width:1100px) { .tables-grid { grid-template-columns: 1fr; } }
+
+  .gainers-losers-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 28px;
+  }
+  @media(max-width:700px) { .gainers-losers-grid { grid-template-columns: 1fr; } }
+
+  .table-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    animation: fadeUp .6s ease forwards;
+    opacity: 0;
+    overflow: hidden;
+  }
+  .table-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 18px;
+  }
+  .search-input {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 7px 12px;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    outline: none;
+    width: 160px;
+    transition: border-color .2s;
+  }
+  .search-input:focus { border-color: var(--accent); }
+
+  .table-scroll { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th {
+    font-size: 11px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 1px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+    text-align: right;
+  }
+  thead th:first-child { text-align: left; }
+  thead th:hover { color: var(--accent); }
+  thead th .sort-arrow { opacity: .4; margin-left: 4px; }
+  thead th.sorted .sort-arrow { opacity: 1; color: var(--accent); }
+
+  tbody tr {
+    border-bottom: 1px solid rgba(30,45,71,.6);
+    transition: background .15s;
+  }
+  tbody tr:hover { background: var(--surface2); }
+  tbody td { padding: 11px 12px; font-family: var(--font-mono); font-size: 12px; text-align: right; white-space: nowrap; }
+  tbody td:first-child { text-align: left; font-family: var(--font-display); font-size: 13px; font-weight: 600; }
+  tfoot td { padding: 11px 12px; font-family: var(--font-mono); font-size: 12px; text-align: right; font-weight: 700; border-top: 1px solid var(--border); color: var(--accent); }
+  tfoot td:first-child { text-align: left; }
+
+  .pos { color: var(--green); }
+  .neg { color: var(--red); }
+  .neutral { color: var(--muted); }
+
+  .tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    font-family: var(--font-display);
+  }
+
+  /* GAINERS/LOSERS TABLES */
+  .gainers-losers-grid table {
+    font-size: 12px;
+  }
+  .gainers-losers-grid thead th {
+    padding: 8px 10px;
+    font-size: 10px;
+  }
+  .gainers-losers-grid tbody td {
+    padding: 8px 10px;
+    font-size: 11px;
+  }
+
+  /* MODAL STYLES */
+  .modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0; top: 0;
+    width: 100%; height: 100%;
+    background-color: rgba(0,0,0,0.7);
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn .3s ease;
+  }
+  .modal-content {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    width: 90%;
+    max-width: 800px;
+    max-height: 90vh;
+    overflow: hidden;
+    animation: slideUp .3s ease;
+  }
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border);
+  }
+  .modal-close {
+    font-size: 28px;
+    font-weight: 300;
+    color: var(--muted);
+    cursor: pointer;
+    line-height: 1;
+    transition: color .2s;
+  }
+  .modal-close:hover { color: var(--accent); }
+  .modal-body {
+    padding: 24px;
+  }
+
+  /* CLICKABLE KPI */
+  .kpi-clickable {
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .kpi-clickable:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+  }
+
+  /* ANIMATIONS */
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* FOOTER */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 20px 0;
+    text-align: center;
+    color: var(--muted);
+    font-size: 12px;
+    font-family: var(--font-mono);
+    margin-top: 12px;
+  }
+
+  /* ANIMATIONS */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(18px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .kpi-card:nth-child(1) { animation-delay: .05s; }
+  .kpi-card:nth-child(2) { animation-delay: .10s; }
+  .kpi-card:nth-child(3) { animation-delay: .15s; }
+  .kpi-card:nth-child(4) { animation-delay: .20s; }
+  .kpi-card:nth-child(5) { animation-delay: .25s; }
+
+  .gainers-losers-grid .table-card:nth-child(1) { animation-delay: .30s; }
+  .gainers-losers-grid .table-card:nth-child(2) { animation-delay: .35s; }
+
+  /* SPINNER */
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* PLACEHOLDER */
+  .placeholder {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    min-height: 200px; color: var(--muted); gap: 12px; text-align: center;
+  }
+  .placeholder-icon { font-size: 36px; opacity: .3; }
+
+  /* TOOLTIP */
+  .tooltip-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 16px; height: 16px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    font-size: 9px;
+    color: var(--muted);
+    cursor: help;
+    margin-left: 6px;
+  }
+
+  /* SECTOR BADGE COLORS */
+  .sector-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- HEADER -->
+  <header>
+    <div class="header-inner">
+      <div class="logo">
+        <div class="logo-icon">📈</div>
+        <div>
+          <div class="logo-text">Tushar's<span>Portfolio</span></div>
+          <div style="font-size:11px;color:var(--muted);font-family:var(--font-mono);">Investment Dashboard</div>
+        </div>
+      </div>
+      <div class="header-meta">
+        <span class="last-updated" id="lastUpdated">Not loaded</span>
+        <button class="sync-btn" id="refreshBtn" onclick="loadData()">
+          <span id="refreshIcon">⟳</span> Refresh
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- CONFIG PANEL -->
+  <div class="config-panel">
+    <span class="config-label">Google Sheet</span>
+    <div style="flex:1;display:flex;flex-direction:column;gap:6px;">
+      <input
+        type="text"
+        class="config-input"
+        id="sheetUrl"
+        placeholder="Paste your Google Sheet URL here..."
+        value=""
+      />
+      <span class="config-hint">
+        ⓘ Make your sheet public: Share → Anyone with the link → Viewer. Then paste the URL above.
+        The sheet should have columns: Symbol Name, Quantity, Amount Invested, Market Value, Average Rate, Gain/Loss, Day Change
+      </span>
+    </div>
+    <button class="load-btn" onclick="loadData()">Load Data</button>
+  </div>
+
+  <!-- STATUS BAR -->
+  <div id="statusBar"></div>
+
+  <!-- KPI CARDS -->
+  <div class="kpi-grid" id="kpiGrid">
+    <div class="kpi-card" style="animation-delay:.05s">
+      <div class="kpi-label">Total Invested</div>
+      <div class="kpi-value" id="kpiInvested">—</div>
+      <div class="kpi-sub">Cost basis</div>
+    </div>
+    <div class="kpi-card" style="animation-delay:.10s">
+      <div class="kpi-label">Market Value</div>
+      <div class="kpi-value" id="kpiMarket">—</div>
+      <div class="kpi-sub">Current valuation</div>
+    </div>
+    <div class="kpi-card" style="animation-delay:.15s">
+      <div class="kpi-label">Total P&amp;L</div>
+      <div class="kpi-value" id="kpiPnl">—</div>
+      <div id="kpiPnlBadge" class="kpi-badge">0%</div>
+    </div>
+    <div class="kpi-card" style="animation-delay:.20s">
+      <div class="kpi-label">Day Change</div>
+      <div class="kpi-value" id="kpiDay">—</div>
+      <div id="kpiDayBadge" class="kpi-badge">today</div>
+    </div>
+    <div class="kpi-card kpi-clickable" style="animation-delay:.25s" onclick="showHoldingsModal()">
+      <div class="kpi-label">Holdings</div>
+      <div class="kpi-value" id="kpiCount">—</div>
+      <div class="kpi-sub" id="kpiSectors">across — sectors</div>
+    </div>
+  </div>
+
+  <!-- CHARTS -->
+  <div class="charts-grid">
+    <div class="chart-card">
+      <div class="chart-title">Market Value Distribution</div>
+      <div class="chart-wrap"><canvas id="chartPie"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Sector Allocation</div>
+      <div class="chart-wrap"><canvas id="chartSector"></canvas></div>
+    </div>
+  </div>
+
+  <!-- TOP GAINERS & LOSERS -->
+  <div class="gainers-losers-grid">
+    <div class="table-card">
+      <div class="chart-title" style="margin-bottom:18px">Top 5 Gainers</div>
+      <div class="table-scroll">
+        <table id="gainersTable">
+          <thead>
+            <tr>
+              <th>Symbol</th>
+              <th>Gain/Loss</th>
+              <th>% Change</th>
+            </tr>
+          </thead>
+          <tbody id="gainersBody">
+            <tr><td colspan="3"><div class="placeholder"><div class="placeholder-icon">📈</div><div>Top gainers will appear here</div></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="table-card">
+      <div class="chart-title" style="margin-bottom:18px">Top 5 Losers</div>
+      <div class="table-scroll">
+        <table id="losersTable">
+          <thead>
+            <tr>
+              <th>Symbol</th>
+              <th>Gain/Loss</th>
+              <th>% Change</th>
+            </tr>
+          </thead>
+          <tbody id="losersBody">
+            <tr><td colspan="3"><div class="placeholder"><div class="placeholder-icon">📉</div><div>Top losers will appear here</div></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- TABLES -->
+  <div class="tables-grid">
+    <!-- Holdings Table -->
+    <div class="table-card">
+      <div class="table-header">
+        <div class="chart-title" style="margin:0">Stock Holdings</div>
+        <input type="text" class="search-input" id="searchHoldings" placeholder="Search symbol..." oninput="filterTable()">
+      </div>
+      <div class="table-scroll">
+        <table id="holdingsTable">
+          <thead>
+            <tr>
+              <th onclick="sortTable('holdings',0)" class="sorted" data-dir="asc">Symbol <span class="sort-arrow">▲</span></th>
+              <th onclick="sortTable('holdings',1)">Qty <span class="sort-arrow">▲</span></th>
+              <th onclick="sortTable('holdings',2)">Invested <span class="sort-arrow">▲</span></th>
+              <th onclick="sortTable('holdings',3)">Mkt Value <span class="sort-arrow">▲</span></th>
+              <th onclick="sortTable('holdings',4)">Avg Rate <span class="sort-arrow">▲</span></th>
+              <th onclick="sortTable('holdings',5)">Gain/Loss <span class="sort-arrow">▲</span></th>
+              <th onclick="sortTable('holdings',6)">Day Chg <span class="sort-arrow">▲</span></th>
+            </tr>
+          </thead>
+          <tbody id="holdingsBody">
+            <tr><td colspan="7"><div class="placeholder"><div class="placeholder-icon">📊</div><div>Load your Google Sheet to see holdings</div></div></td></tr>
+          </tbody>
+          <tfoot id="holdingsFoot"></tfoot>
+        </table>
+      </div>
+    </div>
+
+    <!-- Sector Table -->
+    <div class="table-card">
+      <div class="table-header">
+        <div class="chart-title" style="margin:0">Sector Breakdown</div>
+      </div>
+      <div class="table-scroll">
+        <table id="sectorTable">
+          <thead>
+            <tr>
+              <th onclick="sortTable('sector',0)">Sector <span class="sort-arrow">▲</span></th>
+              <th onclick="sortTable('sector',1)">Invested <span class="sort-arrow">▲</span></th>
+              <th onclick="sortTable('sector',2)">Mkt Value <span class="sort-arrow">▲</span></th>
+              <th onclick="sortTable('sector',3)">P&amp;L <span class="sort-arrow">▲</span></th>
+            </tr>
+          </thead>
+          <tbody id="sectorBody">
+            <tr><td colspan="4"><div class="placeholder"><div class="placeholder-icon">🏭</div><div>Sector data will appear here</div></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    Tushar's Portfolio · Data sourced from Google Sheets · Built for personal investment tracking
+  </footer>
+</div>
+
+<script>
+// ─── PALETTE ───────────────────────────────────────────────────────────
+const COLORS = [
+  '#00d4aa','#3b82f6','#f59e0b','#ec4899','#8b5cf6',
+  '#06b6d4','#f97316','#84cc16','#e11d48','#14b8a6',
+  '#a78bfa','#fb923c','#4ade80','#60a5fa','#fbbf24'
+];
+
+// ─── STATE ──────────────────────────────────────────────────────────────
+let holdingsData = [];
+let sectorData = [];
+let charts = {};
+
+// ─── HELPERS ────────────────────────────────────────────────────────────
+const fmt = (n, decimals=2) => {
+  if (n == null || isNaN(n)) return '—';
+  return new Intl.NumberFormat('en-IN', { minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(n);
+};
+const fmtCur = n => {
+  if (n == null || isNaN(n)) return '—';
+  return '₹' + fmt(n);
+};
+const colorVal = v => v > 0 ? 'pos' : v < 0 ? 'neg' : 'neutral';
+const arrow = v => v > 0 ? '▲' : v < 0 ? '▼' : '—';
+
+function status(msg, color='var(--accent)') {
+  const bar = document.getElementById('statusBar');
+  bar.style.display = 'block';
+  bar.style.color = color;
+  bar.innerHTML = msg;
+}
+
+// ─── GOOGLE SHEET LOADER ────────────────────────────────────────────────
+function extractSheetId(url) {
+  const m = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
+  return m ? m[1] : null;
+}
+
+function extractGid(url) {
+  const m = url.match(/[#&?]gid=(\d+)/);
+  return m ? m[1] : '0';
+}
+
+async function loadData() {
+  const rawUrl = document.getElementById('sheetUrl').value.trim();
+  if (!rawUrl) {
+    status('⚠ No Google Sheet URL provided. Paste your sheet URL above and click Load Data.', 'var(--accent3)');
+    // Clear any existing data
+    holdingsData = [];
+    sectorData = [];
+    renderAll();
+    return;
+  }
+
+  // Save URL to localStorage
+  localStorage.setItem('portfolioSheetUrl', rawUrl);
+
+  const sheetId = extractSheetId(rawUrl);
+  if (!sheetId) {
+    status('❌ Could not parse Sheet ID from URL. Make sure you pasted the full Google Sheets URL.', 'var(--red)');
+    return;
+  }
+
+  const gid = extractGid(rawUrl);
+  const btn = document.getElementById('refreshBtn');
+  btn.classList.add('loading');
+  btn.innerHTML = '<span class="spinner"></span> Loading...';
+  status('<span class="spinner"></span> Fetching data from Google Sheets...', 'var(--accent)');
+
+  // Try CSV export
+  const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
+
+  try {
+    const resp = await fetch(csvUrl);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status} — Make sure the sheet is set to "Anyone with the link can view"`);
+    const text = await resp.text();
+    parseAndRender(text);
+    document.getElementById('lastUpdated').textContent = 'Updated: ' + new Date().toLocaleTimeString();
+    status('✓ Data loaded successfully from Google Sheets.', 'var(--green)');
+    setTimeout(() => { document.getElementById('statusBar').style.display = 'none'; }, 3000);
+  } catch(e) {
+    status(`❌ Failed to load: ${e.message}`, 'var(--red)');
+  } finally {
+    btn.classList.remove('loading');
+    btn.innerHTML = '<span>⟳</span> Refresh';
+  }
+}
+
+// ─── CSV PARSER ─────────────────────────────────────────────────────────
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  return lines.map(line => {
+    const cols = [];
+    let cur = '', inQ = false;
+    for (let c of line) {
+      if (c === '"') { inQ = !inQ; }
+      else if (c === ',' && !inQ) { cols.push(cur.trim()); cur = ''; }
+      else cur += c;
+    }
+    cols.push(cur.trim());
+    return cols;
+  });
+}
+
+function parseNum(s) {
+  if (!s) return 0;
+  return parseFloat(s.toString().replace(/[₹,\s]/g,'').replace(/\((.+)\)/, '-$1')) || 0;
+}
+
+function parseAndRender(csvText) {
+  const rows = parseCSV(csvText);
+  if (rows.length < 2) { status('❌ Sheet appears empty or has no data rows.', 'var(--red)'); return; }
+
+  // Auto-detect header row
+  const header = rows[0].map(h => h.toLowerCase().trim());
+  const colIdx = {};
+  
+  // Aliases ordered by specificity (most specific first to avoid false matches)
+  const aliases = {
+    symbol: ['symbol name','symbol','stock','scrip'],
+    name: ['name','company name','company','stock name','security name'],
+    qty: ['quantity','qty','shares','units'],
+    invested: ['amount invested','invested','cost basis','purchase value'],
+    market: ['stock valuation (current)','market value','current value','mkt value','ltp value','market val'],
+    avgrate: ['average rate','avg rate','avg price','buy price','purchase price'],
+    gainloss: ['gain/loss','gain loss','p&l','pnl','profit loss','unrealised gain','unrealised'],
+    daychange: ['day change','daychange','day chg','daily change','todays change','1d change'],
+    sector: ['sector','industry','category']
+  };
+
+  // Helper to match header with aliases (word-boundary aware)
+  function findColumnIndex(headerArray, keyAliases) {
+    for (const alias of keyAliases) {
+      const idx = headerArray.findIndex(h => {
+        const words = h.split(/\s+/);
+        const aliasWords = alias.split(/\s+/);
+        // Check for exact match or words contained in header
+        if (h === alias) return true;
+        if (aliasWords.length === 1 && words.some(w => w === aliasWords[0])) return true;
+        return aliasWords.every(aw => words.some(w => w.includes(aw)));
+      });
+      if (idx !== -1) return idx;
+    }
+    return -1;
+  }
+
+  for (const [key, names] of Object.entries(aliases)) {
+    const idx = findColumnIndex(header, names);
+    if (idx !== -1) colIdx[key] = idx;
+  }
+
+  // Validate that critical columns were found
+  const missingCols = [];
+  if (colIdx.market === undefined) missingCols.push('Market Value');
+  if (colIdx.daychange === undefined) missingCols.push('Day Change');
+  if (missingCols.length > 0) {
+    status(`⚠ Could not auto-detect columns: ${missingCols.join(', ')}. Check your sheet headers match: "Market Value" and "Day Change"`, 'var(--accent3)');
+  } else {
+    status(`✓ Detected columns: Market Value (col ${colIdx.market + 1}), Day Change (col ${colIdx.daychange + 1}). Processing data...`, 'var(--green)');
+  }
+
+  // Parse holdings rows (skip header, skip empty & total rows)
+  const holdings = [];
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    if (!r || r.length < 3) continue;
+    const sym = r[colIdx.symbol ?? 0];
+    if (!sym || sym.toLowerCase().includes('total') || sym === '') continue;
+
+    const marketVal = parseNum(r[colIdx.market !== undefined ? colIdx.market : 3]);
+    const dayChgVal = parseNum(r[colIdx.daychange !== undefined ? colIdx.daychange : 6]);
+
+    holdings.push({
+      symbol: sym,
+      name: colIdx.name != null ? r[colIdx.name] : sym, // Use name if available, otherwise fallback to symbol
+      qty: parseNum(r[colIdx.qty ?? 1]),
+      invested: parseNum(r[colIdx.invested ?? 2]),
+      market: marketVal,
+      avgrate: parseNum(r[colIdx.avgrate ?? 4]),
+      gainloss: parseNum(r[colIdx.gainloss ?? 5]),
+      daychange: dayChgVal,
+      sector: colIdx.sector != null ? r[colIdx.sector] : 'Unknown'
+    });
+  }
+
+  holdingsData = holdings;
+
+  // Build sector summary from holdings
+  const sectorMap = {};
+  for (const h of holdings) {
+    const s = h.sector || 'Unknown';
+    if (!sectorMap[s]) sectorMap[s] = { sector: s, invested: 0, market: 0, gainloss: 0, daychange: 0 };
+    sectorMap[s].invested += h.invested;
+    sectorMap[s].market += h.market;
+    sectorMap[s].gainloss += h.gainloss;
+    sectorMap[s].daychange += h.daychange;
+  }
+  sectorData = Object.values(sectorMap).sort((a,b) => b.market - a.market);
+
+  renderAll();
+}
+
+// ─── RENDER ─────────────────────────────────────────────────────────────
+function renderAll() {
+  renderKPIs();
+  renderCharts();
+  renderGainersLosers();
+  renderHoldingsTable();
+  renderSectorTable();
+}
+
+function renderKPIs() {
+  const totInv = holdingsData.reduce((a,h) => a+h.invested, 0);
+  const totMkt = holdingsData.reduce((a,h) => a+h.market, 0);
+  const totPnl = totMkt - totInv;
+  const totDay = holdingsData.reduce((a,h) => a+h.daychange, 0);
+  const pct = totInv > 0 ? (totPnl/totInv*100) : 0;
+  const dayPct = totMkt > 0 ? (totDay/totMkt*100) : 0;
+  const sectors = new Set(holdingsData.map(h => h.sector)).size;
+
+  document.getElementById('kpiInvested').textContent = fmtCur(totInv);
+  document.getElementById('kpiMarket').textContent = fmtCur(totMkt);
+  document.getElementById('kpiPnl').innerHTML = `<span class="${colorVal(totPnl)}">${fmtCur(totPnl)}</span>`;
+  const pnlBadge = document.getElementById('kpiPnlBadge');
+  pnlBadge.className = 'kpi-badge ' + (totPnl >= 0 ? 'pos' : 'neg');
+  pnlBadge.textContent = (totPnl >= 0 ? '+' : '') + fmt(pct) + '%';
+
+  document.getElementById('kpiDay').innerHTML = `<span class="${colorVal(totDay)}">${fmtCur(totDay)}</span>`;
+  const dayBadge = document.getElementById('kpiDayBadge');
+  dayBadge.className = 'kpi-badge ' + (totDay >= 0 ? 'pos' : 'neg');
+  dayBadge.textContent = (totDay >= 0 ? '+' : '') + fmt(dayPct) + '% today';
+
+  document.getElementById('kpiCount').textContent = holdingsData.length;
+  document.getElementById('kpiSectors').textContent = `across ${sectors} sector${sectors!==1?'s':''}`;
+}
+
+function renderCharts() {
+  const sorted = [...holdingsData].sort((a,b) => b.market - a.market);
+
+  // Pie - Market Value
+  if (charts.pie) charts.pie.destroy();
+  const pieCtx = document.getElementById('chartPie').getContext('2d');
+  
+  if (sorted.length > 0) {
+    charts.pie = new Chart(pieCtx, {
+      type: 'doughnut',
+      data: {
+        labels: sorted.map(h => h.symbol),
+        datasets: [{ data: sorted.map(h => h.market), backgroundColor: COLORS, borderColor: '#0a0e1a', borderWidth: 2, hoverOffset: 8 }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        cutout: '65%',
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#111827', borderColor: '#1e2d47', borderWidth: 1,
+            callbacks: {
+              label: ctx => ` ${ctx.label}: ₹${fmt(ctx.raw)} (${fmt(ctx.raw / sorted.reduce((a,h)=>a+h.market,0)*100)}%)`
+            }
+          }
+        }
+      }
+    });
+  }
+
+  // Sector Doughnut
+  if (charts.sector) charts.sector.destroy();
+  const secCtx = document.getElementById('chartSector').getContext('2d');
+  
+  if (sectorData.length > 0) {
+    charts.sector = new Chart(secCtx, {
+      type: 'doughnut',
+      data: {
+        labels: sectorData.map(s => s.sector),
+        datasets: [{ data: sectorData.map(s => s.market), backgroundColor: COLORS, borderColor: '#0a0e1a', borderWidth: 2, hoverOffset: 8 }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        cutout: '65%',
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#111827', borderColor: '#1e2d47', borderWidth: 1,
+            callbacks: {
+              label: ctx => ` ${ctx.label}: ₹${fmt(ctx.raw)} (${fmt(ctx.raw / sectorData.reduce((a,s)=>a+s.market,0)*100)}%)`
+            }
+          }
+        }
+      }
+    });
+  }
+}
+
+// ─── HOLDINGS TABLE ──────────────────────────────────────────────────────
+let sortState = { holdings: { col: 3, dir: 'desc' }, sector: { col: 2, dir: 'desc' } };
+
+function renderHoldingsTable(data) {
+  data = data || holdingsData;
+  const tbody = document.getElementById('holdingsBody');
+  const tfoot = document.getElementById('holdingsFoot');
+
+  if (!data.length) { tbody.innerHTML = '<tr><td colspan="7"><div class="placeholder"><div class="placeholder-icon">�</div><div>Paste your Google Sheet URL above to load holdings data</div></div></td></tr>'; return; }
+
+  const totInv = data.reduce((a,h) => a+h.invested, 0);
+  const totMkt = data.reduce((a,h) => a+h.market, 0);
+  const totPnl = data.reduce((a,h) => a+h.gainloss, 0);
+  const totDay = data.reduce((a,h) => a+h.daychange, 0);
+
+  tbody.innerHTML = data.map(h => `
+    <tr>
+      <td>${h.symbol}</td>
+      <td>${fmt(h.qty, 0)}</td>
+      <td>${fmtCur(h.invested)}</td>
+      <td>${fmtCur(h.market)}</td>
+      <td>${fmtCur(h.avgrate)}</td>
+      <td class="${colorVal(h.gainloss)}">${arrow(h.gainloss)} ${fmtCur(Math.abs(h.gainloss))}</td>
+      <td class="${colorVal(h.daychange)}">${arrow(h.daychange)} ${fmtCur(Math.abs(h.daychange))}</td>
+    </tr>
+  `).join('');
+
+  tfoot.innerHTML = `<tr>
+    <td>TOTAL</td><td>—</td>
+    <td>${fmtCur(totInv)}</td>
+    <td>${fmtCur(totMkt)}</td>
+    <td>—</td>
+    <td class="${colorVal(totPnl)}">${arrow(totPnl)} ${fmtCur(Math.abs(totPnl))}</td>
+    <td class="${colorVal(totDay)}">${arrow(totDay)} ${fmtCur(Math.abs(totDay))}</td>
+  </tr>`;
+}
+
+function renderSectorTable() {
+  const tbody = document.getElementById('sectorBody');
+  if (!sectorData.length) { tbody.innerHTML = '<tr><td colspan="4"><div class="placeholder"><div class="placeholder-icon">🏭</div><div>Sector breakdown will appear here once data is loaded</div></div></td></tr>'; return; }
+
+  const totMkt = sectorData.reduce((a,s)=>a+s.market,0);
+  tbody.innerHTML = sectorData.map((s,i) => `
+    <tr>
+      <td><span class="sector-dot" style="background:${COLORS[i%COLORS.length]}"></span>${s.sector}</td>
+      <td>${fmtCur(s.invested)}</td>
+      <td>${fmtCur(s.market)} <span style="color:var(--muted);font-size:10px;">(${fmt(s.market/totMkt*100)}%)</span></td>
+      <td class="${colorVal(s.gainloss)}">${arrow(s.gainloss)} ${fmtCur(Math.abs(s.gainloss))}</td>
+    </tr>
+  `).join('');
+}
+// ─── GAINERS & LOSERS ────────────────────────────────────────────────────
+function renderGainersLosers() {
+  if (!holdingsData.length) {
+    document.getElementById('gainersBody').innerHTML = '<tr><td colspan="3"><div class="placeholder"><div class="placeholder-icon">📈</div><div>Top gainers will appear here</div></div></td></tr>';
+    document.getElementById('losersBody').innerHTML = '<tr><td colspan="3"><div class="placeholder"><div class="placeholder-icon">📉</div><div>Top losers will appear here</div></div></td></tr>';
+    return;
+  }
+
+  // Calculate percentage change for each holding
+  const holdingsWithPct = holdingsData.map(h => ({
+    ...h,
+    pctChange: h.invested > 0 ? (h.gainloss / h.invested) * 100 : 0
+  }));
+
+  // Sort by gain/loss percentage
+  const sortedByGain = [...holdingsWithPct].sort((a, b) => b.pctChange - a.pctChange);
+  
+  // Top 5 gainers
+  const gainers = sortedByGain.slice(0, 5);
+  const gainersTbody = document.getElementById('gainersBody');
+  gainersTbody.innerHTML = gainers.map(h => `
+    <tr>
+      <td>${h.name}</td>
+      <td class="${colorVal(h.gainloss)}">${arrow(h.gainloss)} ${fmtCur(Math.abs(h.gainloss))}</td>
+      <td class="${colorVal(h.pctChange)}">${fmt(h.pctChange)}%</td>
+    </tr>
+  `).join('');
+
+  // Top 5 losers (bottom 5 from sorted list)
+  const losers = sortedByGain.slice(-5).reverse(); // Reverse to show worst first
+  const losersTbody = document.getElementById('losersBody');
+  losersTbody.innerHTML = losers.map(h => `
+    <tr>
+      <td>${h.name}</td>
+      <td class="${colorVal(h.gainloss)}">${arrow(h.gainloss)} ${fmtCur(Math.abs(h.gainloss))}</td>
+      <td class="${colorVal(h.pctChange)}">${fmt(h.pctChange)}%</td>
+    </tr>
+  `).join('');
+}
+// ─── SEARCH / SORT ───────────────────────────────────────────────────────
+function filterTable() {
+  const q = document.getElementById('searchHoldings').value.toLowerCase();
+  const filtered = holdingsData.filter(h => h.symbol.toLowerCase().includes(q) || (h.sector || '').toLowerCase().includes(q));
+  renderHoldingsTable(filtered);
+}
+
+function sortTable(type, col) {
+  const state = sortState[type];
+  if (state.col === col) state.dir = state.dir === 'asc' ? 'desc' : 'asc';
+  else { state.col = col; state.dir = col === 0 ? 'asc' : 'desc'; }
+
+  const keys = type === 'holdings'
+    ? ['symbol','qty','invested','market','avgrate','gainloss','daychange']
+    : ['sector','invested','market','gainloss'];
+
+  const key = keys[col];
+  const dir = state.dir === 'asc' ? 1 : -1;
+  const sorter = (a,b) => typeof a[key] === 'string' ? a[key].localeCompare(b[key])*dir : (a[key]-b[key])*dir;
+
+  if (type === 'holdings') { holdingsData = [...holdingsData].sort(sorter); renderHoldingsTable(); }
+  else { sectorData = [...sectorData].sort(sorter); renderSectorTable(); }
+}
+
+// ─── DEMO DATA ───────────────────────────────────────────────────────────
+function loadDemoData() {
+  holdingsData = [
+    { symbol:'Yes Bank Ltd',       name:'Yes Bank Ltd',       qty:200, invested:4552,    market:4082,    avgrate:20.41,  gainloss:-470,    daychange:62,    sector:'Banks' },
+    { symbol:'Gujarat Pipavav',    name:'Gujarat Pipavav Port Ltd',    qty:60,  invested:7697.91, market:9648,    avgrate:160.8,  gainloss:1960.09, daychange:222,   sector:'Marine Port & Services' },
+    { symbol:'Tata Steel Ltd',     name:'Tata Steel Ltd',     qty:30,  invested:3942,    market:6354.6,  avgrate:211.82, gainloss:2412.6,  daychange:33.9,  sector:'Steel' },
+    { symbol:'NMDC Ltd',           name:'NMDC Ltd',           qty:105, invested:5268,    market:9426.9,  avgrate:89.78,  gainloss:4158.73, daychange:375.15,sector:'Mining & Mineral products' },
+    { symbol:'Hindustan Constr',   name:'Hindustan Construction Company Ltd',   qty:200, invested:3898,    market:3820,    avgrate:19.10,  gainloss:-78,     daychange:34,    sector:'Infrastructure Dev.' },
+    { symbol:'Union Bank of India',name:'Union Bank of India',qty:90,  invested:9403.2,  market:16991.1, avgrate:188.79, gainloss:7687.96, daychange:27,    sector:'Banks' },
+    { symbol:'Rail Vikas Nigam',   name:'Rail Vikas Nigam Ltd',   qty:35,  invested:4236.05, market:10597.3, avgrate:302.78, gainloss:6361.25, daychange:74.55, sector:'Infrastructure Dev.' },
+    { symbol:'Indian Railway Fin', name:'Indian Railway Finance Corporation Ltd', qty:160, invested:17778.99,market:16792,   avgrate:104.95, gainloss:-986.99, daychange:273.6, sector:'Finance' },
+    { symbol:'Tata Power Company', name:'Tata Power Company Ltd', qty:20,  invested:8947.8,  market:8550,    avgrate:427.5,  gainloss:1602.2,  daychange:18,    sector:'Power Generation' },
+    { symbol:'Alok Industries',    name:'Alok Industries Ltd',    qty:350, invested:13044.5, market:5019,    avgrate:14.34,  gainloss:-8025.5, daychange:-31.5, sector:'Textiles' },
+    { symbol:'Canara Bank Ltd',    name:'Canara Bank Ltd',    qty:50,  invested:7913.8,  market:10680,   avgrate:142.4,  gainloss:2786.2,  daychange:102.75,sector:'Banks' },
+    { symbol:'Bajaj Housing Fin',  name:'Bajaj Housing Finance Ltd',  qty:50,  invested:7826.5,  market:4800,    avgrate:92,     gainloss:-3326.5, daychange:140,   sector:'Finance' },
+    { symbol:'NBCC (India) Ltd',   name:'NBCC (India) Ltd',   qty:55,  invested:5163.98, market:5192,    avgrate:94.4,   gainloss:8,       daychange:-8.5,  sector:'Infrastructure Dev.' },
+    { symbol:'Eternal Ltd',        name:'Eternal Engineering Ltd',        qty:17,  invested:3790.32, market:4287.4,  avgrate:252.2,  gainloss:497.08,  daychange:-8.5,  sector:'E-Commerce/App' },
+    { symbol:'NHPC Ltd',           name:'NHPC Ltd',           qty:30,  invested:2656.09, market:2527.8,  avgrate:84.26,  gainloss:-128.29, daychange:98.4,  sector:'Power Generation' },
+    { symbol:'SJVN Ltd',           name:'SJVN Ltd',           qty:13,  invested:1329.76, market:1027,    avgrate:79,     gainloss:-302.76, daychange:34.71, sector:'Power Generation' },
+    { symbol:'ITC Ltd',            name:'ITC Ltd',            qty:11,  invested:4639.81, market:3377,    avgrate:307,    gainloss:-1262.81,daychange:0,     sector:'Tobacco Products' },
+    { symbol:'Ircon International',name:'Ircon International Ltd',qty:1,   invested:220.99,  market:154.6,   avgrate:154.6,  gainloss:-66.39,  daychange:12.22, sector:'Infrastructure Dev.' },
+    { symbol:'HCL Technologies',   name:'HCL Technologies Ltd',   qty:3,   invested:4212.33, market:4329,    avgrate:1443,   gainloss:116.67,  daychange:-21.6, sector:'Information Technology' },
+    { symbol:'HDFC Bank',          name:'HDFC Bank Ltd',          qty:1,   invested:966.06,  market:800,     avgrate:800,    gainloss:-166.06, daychange:4.55,  sector:'Banks' },
+  ];
+
+  // Build sectors from holdings
+  const sectorMap = {};
+  for (const h of holdingsData) {
+    const s = h.sector || 'Unknown';
+    if (!sectorMap[s]) sectorMap[s] = { sector: s, invested: 0, market: 0, gainloss: 0, daychange: 0 };
+    sectorMap[s].invested += h.invested;
+    sectorMap[s].market += h.market;
+    sectorMap[s].gainloss += h.gainloss;
+    sectorMap[s].daychange += h.daychange;
+  }
+  sectorData = Object.values(sectorMap).sort((a,b) => b.market - a.market);
+
+  document.getElementById('lastUpdated').textContent = 'Demo data loaded';
+  renderAll();
+}
+
+// ─── INIT ────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  // Load saved URL from localStorage
+  const savedUrl = localStorage.getItem('portfolioSheetUrl');
+  if (savedUrl) {
+    document.getElementById('sheetUrl').value = savedUrl;
+    // Auto-load data if URL exists
+    loadData();
+  } else {
+    // Show blank state
+    holdingsData = [];
+    sectorData = [];
+    renderAll();
+    status('Welcome to Tushar\'s Portfolio! Paste your Google Sheet URL above to get started.', 'var(--accent)');
+  }
+});
+
+// ─── MODAL FUNCTIONALITY ──────────────────────────────────────────────────────
+function showHoldingsModal() {
+  const modal = document.getElementById('holdingsModal');
+  modal.style.display = 'flex';
+  
+  // Render the bar chart in the modal
+  const barCtx = document.getElementById('modalChartBar').getContext('2d');
+  const sorted = [...holdingsData].sort((a,b) => b.market - a.market);
+  
+  if (window.modalBarChart) window.modalBarChart.destroy();
+  
+  window.modalBarChart = new Chart(barCtx, {
+    type: 'bar',
+    data: {
+      labels: sorted.map(h => h.name),
+      datasets: [{
+        data: sorted.map(h => h.qty),
+        backgroundColor: sorted.map((_, i) => COLORS[i % COLORS.length] + 'cc'),
+        borderColor: sorted.map((_, i) => COLORS[i % COLORS.length]),
+        borderWidth: 1, borderRadius: 4
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      indexAxis: 'y',
+      plugins: { legend: { display: false }, tooltip: { backgroundColor: '#111827', borderColor: '#1e2d47', borderWidth: 1 } },
+      scales: {
+        x: { grid: { color: 'rgba(30,45,71,.4)' }, ticks: { color: '#64748b', font: { family: 'DM Mono', size: 10 } } },
+        y: { grid: { display: false }, ticks: { color: '#94a3b8', font: { family: 'DM Mono', size: 11 } } }
+      }
+    }
+  });
+}
+
+function closeHoldingsModal() {
+  const modal = document.getElementById('holdingsModal');
+  modal.style.display = 'none';
+}
+
+// Close modal when clicking outside
+window.onclick = function(event) {
+  const modal = document.getElementById('holdingsModal');
+  if (event.target === modal) {
+    modal.style.display = 'none';
+  }
+}
+</script>
+
+<!-- HOLDINGS MODAL -->
+<div id="holdingsModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <div class="chart-title" style="margin:0">Holding Quantity</div>
+      <span class="modal-close" onclick="closeHoldingsModal()">&times;</span>
+    </div>
+    <div class="modal-body">
+      <div class="chart-wrap" style="height: 400px;"><canvas id="modalChartBar"></canvas></div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
